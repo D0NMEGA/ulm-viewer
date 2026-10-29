@@ -103,7 +103,7 @@ void main() {
   // Bright detections draw larger: dense vessels fill in as tubes, dim
   // scattered points stay as fine dots. A floor keeps every point visible.
   if (u_sizeByIntensity == 1) {
-    size *= 0.35 + 0.9 * aIntensity;
+    size *= 0.55 + 0.7 * aIntensity;
   }
   size *= (1.0 + 1.6 * vGlow);
 
@@ -150,7 +150,7 @@ vec3 cmapPlasma(float t) {
   t = clamp(t, 0.0, 1.0);
   if (t < 0.33) return mix(vec3(0.25, 0.30, 0.95), vec3(0.70, 0.15, 0.75), t / 0.33);
   if (t < 0.66) return mix(vec3(0.70, 0.15, 0.75), vec3(0.98, 0.50, 0.15), (t - 0.33) / 0.33);
-  return mix(vec3(0.92, 0.42, 0.18), vec3(0.94, 0.97, 0.13), (t - 0.66) / 0.34);
+  return mix(vec3(0.98, 0.50, 0.15), vec3(1.0, 0.78, 0.40), (t - 0.66) / 0.34);
 }
 
 vec3 cmapCoolwarm(float t) {
@@ -323,7 +323,7 @@ class TrackSystem {
       u_speedBand: { value: 0.08 },
       u_useIntensity: { value: 0 },
       u_sizeByIntensity: { value: 1 },
-      u_opacity: { value: 0.6 },
+      u_opacity: { value: 0.3 },
       u_reveal: { value: 0.0 },
       u_edge: { value: 0.04 },
     };
@@ -394,10 +394,10 @@ const params = {
   buildUp: false,    // show the whole map at once; true replays the acquisition
   speedMultiplier: 60.0,
   pointSize: 0.45,
-  bloom: 0.9,
+  bloom: 0.6,
   maxSpeed: 0.1713,  // mm per frame; 38 mm/s at 222 Hz, the top of the colour scale
   colormap: 3,       // Plasma: slow purple -> fast orange
-  opacity: 0.6,
+  opacity: 0.3,
   jitter: 0.0,
   speedFilter: 0.0,
   particlesPerTrack: 40,
@@ -409,6 +409,10 @@ const params = {
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+// Filmic roll-off: additive points in dense vessels compress toward a warm
+// highlight instead of clipping to white.
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
 renderer.setClearColor(0x010104);
 document.body.appendChild(renderer.domElement);
 
@@ -428,7 +432,7 @@ composer.addPass(new RenderPass(scene, camera));
 // Bloom gives dense vessels the glow of Aleph's renders; threshold low so dim
 // slow-flow points still contribute a halo.
 const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.9, 0.5, 0.05
+  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.45, 0.35
 );
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
