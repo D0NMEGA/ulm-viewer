@@ -8,6 +8,7 @@ alephneuro/microbubbles pipeline (sharsharshar fork, branch mythostake).
 - `/all/` : every track of 5+ frames (49,952 tracks, 501k points, 12 MB)
 - `/min20/` : tracks of 20+ frames (4,408 tracks)
 - `/min35/` : tracks of 35+ frames (1,441 tracks), the `run` default
+- `/gap5/` : same recipe with max gap 5 and max cost 15 (56,132 tracks total; 10+ frames shown)
 - `/first6/` : acquisitions 0-5 only, every track of 5+ frames (1,556 tracks)
 
 Colour is flow speed (plasma: purple slow, orange fast, scale top 38 mm/s); point
