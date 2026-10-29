@@ -36,6 +36,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import GUI from "lil-gui";
 
 // ============================================================
@@ -147,8 +148,8 @@ vec3 cmapViridis(float t) {
 
 vec3 cmapPlasma(float t) {
   t = clamp(t, 0.0, 1.0);
-  if (t < 0.33) return mix(vec3(0.05, 0.03, 0.53), vec3(0.56, 0.07, 0.55), t / 0.33);
-  if (t < 0.66) return mix(vec3(0.56, 0.07, 0.55), vec3(0.92, 0.42, 0.18), (t - 0.33) / 0.33);
+  if (t < 0.33) return mix(vec3(0.25, 0.30, 0.95), vec3(0.70, 0.15, 0.75), t / 0.33);
+  if (t < 0.66) return mix(vec3(0.70, 0.15, 0.75), vec3(0.98, 0.50, 0.15), (t - 0.33) / 0.33);
   return mix(vec3(0.92, 0.42, 0.18), vec3(0.94, 0.97, 0.13), (t - 0.66) / 0.34);
 }
 
@@ -322,7 +323,7 @@ class TrackSystem {
       u_speedBand: { value: 0.08 },
       u_useIntensity: { value: 0 },
       u_sizeByIntensity: { value: 1 },
-      u_opacity: { value: 0.85 },
+      u_opacity: { value: 0.6 },
       u_reveal: { value: 0.0 },
       u_edge: { value: 0.04 },
     };
@@ -336,7 +337,7 @@ class TrackSystem {
       // Premultiplied alpha: the shader already scales colour by alpha.
       blending: THREE.CustomBlending,
       blendSrc: THREE.OneFactor,
-      blendDst: THREE.OneMinusSrcAlphaFactor,
+      blendDst: THREE.OneFactor,
     });
 
     this.points = new THREE.Points(geometry, material);
@@ -392,10 +393,11 @@ const COLORMAPS = { Jet: 0, Inferno: 1, Viridis: 2, Plasma: 3, Coolwarm: 4, Hot:
 const params = {
   buildUp: false,    // show the whole map at once; true replays the acquisition
   speedMultiplier: 60.0,
-  pointSize: 0.3,
+  pointSize: 0.45,
+  bloom: 0.9,
   maxSpeed: 0.1713,  // mm per frame; 38 mm/s at 222 Hz, the top of the colour scale
   colormap: 3,       // Plasma: slow purple -> fast orange
-  opacity: 0.85,
+  opacity: 0.6,
   jitter: 0.0,
   speedFilter: 0.0,
   particlesPerTrack: 40,
@@ -423,6 +425,12 @@ orbitControls.update();
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
+// Bloom gives dense vessels the glow of Aleph's renders; threshold low so dim
+// slow-flow points still contribute a halo.
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.9, 0.5, 0.05
+);
+composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 
 const info = document.getElementById("info");
@@ -483,7 +491,8 @@ async function init() {
     gui.add(params, "maxSpeed", 0.02, 0.5).name("Speed scale top (mm/frame)").onChange(applyParams);
     gui.add(params, "pointSize", 0.05, 1.5).name("Point size").onChange(applyParams);
     gui.add(params, "sizeByIntensity").name("Size by intensity").onChange(applyParams);
-    gui.add(params, "opacity", 0.1, 1.0).name("Opacity");
+    gui.add(params, "opacity", 0.05, 1.0).name("Opacity");
+    gui.add(params, "bloom", 0.0, 2.5).name("Bloom").onChange((v) => { bloomPass.strength = v; });
     const maxSpd = trackData.maxSpeed;
     gui.add(params, "speedFilter", 0, maxSpd).name("Speed filter").onChange(applyParams);
 
