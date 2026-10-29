@@ -61,6 +61,7 @@ uniform float u_reveal;
 uniform float u_edge;
 uniform int u_useIntensity;
 uniform int u_sizeByIntensity;
+uniform float u_maxPixels;
 
 varying float vSpeed;
 varying float vIntensity;
@@ -99,6 +100,8 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
   float dist = -mvPosition.z;
   float size = u_pointSize * u_pixelRatio * (300.0 / max(dist, 1.0));
+  // Cap in device pixels: zooming in should separate points, not swell them.
+  size = min(size, u_maxPixels * u_pixelRatio);
 
   // Bright detections draw larger: dense vessels fill in as tubes, dim
   // scattered points stay as fine dots. A floor keeps every point visible.
@@ -323,7 +326,8 @@ class TrackSystem {
       u_speedBand: { value: 0.08 },
       u_useIntensity: { value: 0 },
       u_sizeByIntensity: { value: 1 },
-      u_opacity: { value: 0.3 },
+      u_maxPixels: { value: 5.0 },
+      u_opacity: { value: 0.9 },
       u_reveal: { value: 0.0 },
       u_edge: { value: 0.04 },
     };
@@ -337,7 +341,7 @@ class TrackSystem {
       // Premultiplied alpha: the shader already scales colour by alpha.
       blending: THREE.CustomBlending,
       blendSrc: THREE.OneFactor,
-      blendDst: THREE.OneFactor,
+      blendDst: THREE.OneMinusSrcAlphaFactor,
     });
 
     this.points = new THREE.Points(geometry, material);
@@ -372,8 +376,9 @@ class TrackSystem {
     this.uniforms.u_reveal.value = Math.min(this.reveal, 1.0);
   }
 
-  setRenderParams({ pointSize, maxSpeed, colormap, jitter, speedFilter, maxSpeedData, useIntensity, sizeByIntensity }) {
+  setRenderParams({ pointSize, maxSpeed, colormap, jitter, speedFilter, maxSpeedData, useIntensity, sizeByIntensity, maxPixels }) {
     if (sizeByIntensity !== undefined) this.uniforms.u_sizeByIntensity.value = sizeByIntensity ? 1 : 0;
+    if (maxPixels !== undefined) this.uniforms.u_maxPixels.value = maxPixels;
     if (pointSize !== undefined) this.uniforms.u_pointSize.value = pointSize;
     if (maxSpeed !== undefined) this.uniforms.u_maxSpeed.value = maxSpeed;
     if (colormap !== undefined) this.uniforms.u_colormap.value = colormap;
@@ -393,11 +398,12 @@ const COLORMAPS = { Jet: 0, Inferno: 1, Viridis: 2, Plasma: 3, Coolwarm: 4, Hot:
 const params = {
   buildUp: false,    // show the whole map at once; true replays the acquisition
   speedMultiplier: 60.0,
-  pointSize: 0.45,
-  bloom: 0.6,
+  pointSize: 0.35,
+  maxPixels: 5,
+  bloom: 0.25,
   maxSpeed: 0.1713,  // mm per frame; 38 mm/s at 222 Hz, the top of the colour scale
-  colormap: 3,       // Plasma: slow purple -> fast orange
-  opacity: 0.3,
+  colormap: 6,       // Turbo: ordered blue -> red, bright across the whole range
+  opacity: 0.9,
   jitter: 0.0,
   speedFilter: 0.0,
   particlesPerTrack: 40,
@@ -412,7 +418,7 @@ renderer.setPixelRatio(window.devicePixelRatio);
 // Filmic roll-off: additive points in dense vessels compress toward a warm
 // highlight instead of clipping to white.
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.0;
 renderer.setClearColor(0x010104);
 document.body.appendChild(renderer.domElement);
 
@@ -432,7 +438,7 @@ composer.addPass(new RenderPass(scene, camera));
 // Bloom gives dense vessels the glow of Aleph's renders; threshold low so dim
 // slow-flow points still contribute a halo.
 const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.45, 0.35
+  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.25, 0.3, 0.7
 );
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
@@ -454,6 +460,7 @@ function applyParams() {
     maxSpeedData: trackData ? trackData.maxSpeed : 1.0,
     useIntensity: params.colorBy === "intensity",
     sizeByIntensity: params.sizeByIntensity,
+    maxPixels: params.maxPixels,
   });
 }
 
@@ -494,6 +501,7 @@ async function init() {
     gui.add(params, "colormap", COLORMAPS).name("Colormap").onChange(applyParams);
     gui.add(params, "maxSpeed", 0.02, 0.5).name("Speed scale top (mm/frame)").onChange(applyParams);
     gui.add(params, "pointSize", 0.05, 1.5).name("Point size").onChange(applyParams);
+    gui.add(params, "maxPixels", 1, 20).name("Max point px").onChange(applyParams);
     gui.add(params, "sizeByIntensity").name("Size by intensity").onChange(applyParams);
     gui.add(params, "opacity", 0.05, 1.0).name("Opacity");
     gui.add(params, "bloom", 0.0, 2.5).name("Bloom").onChange((v) => { bloomPass.strength = v; });
