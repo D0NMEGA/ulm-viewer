@@ -327,7 +327,7 @@ class TrackSystem {
       u_useIntensity: { value: 0 },
       u_sizeByIntensity: { value: 1 },
       u_maxPixels: { value: 5.0 },
-      u_opacity: { value: 0.9 },
+      u_opacity: { value: 1.0 },
       u_reveal: { value: 0.0 },
       u_edge: { value: 0.04 },
     };
@@ -398,12 +398,12 @@ const COLORMAPS = { Jet: 0, Inferno: 1, Viridis: 2, Plasma: 3, Coolwarm: 4, Hot:
 const params = {
   buildUp: false,    // show the whole map at once; true replays the acquisition
   speedMultiplier: 60.0,
-  pointSize: 0.35,
-  maxPixels: 5,
+  pointSize: 0.45,
+  maxPixels: 6,
   bloom: 0.25,
   maxSpeed: 0.1713,  // mm per frame; 38 mm/s at 222 Hz, the top of the colour scale
   colormap: 6,       // Turbo: ordered blue -> red, bright across the whole range
-  opacity: 0.9,
+  opacity: 1.0,
   jitter: 0.0,
   speedFilter: 0.0,
   particlesPerTrack: 40,
@@ -415,10 +415,7 @@ const params = {
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
-// Filmic roll-off: additive points in dense vessels compress toward a warm
-// highlight instead of clipping to white.
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMapping = THREE.NoToneMapping;
 renderer.setClearColor(0x010104);
 document.body.appendChild(renderer.domElement);
 
@@ -489,7 +486,7 @@ async function init() {
     orbitControls.target.copy(center);
     camera.position.set(
       center.x,
-      center.y + Math.max(size.x, size.z) * 1.2,
+      center.y + Math.max(size.x, size.z) * 0.75,
       center.z
     );
     orbitControls.update();
